@@ -191,6 +191,8 @@
     .copy-btn:hover { color: var(--text); border-color: var(--accent); }
     .copy-btn.copied { color: var(--success); border-color: var(--success); }
 
+    .pw-charcount { font-size: .7rem; color: var(--muted); text-align: center; margin-top: .15rem; }
+
     .result-label {
       font-size: .75rem; color: var(--muted);
       text-transform: uppercase; letter-spacing: .05em; margin-bottom: .3rem;
@@ -441,7 +443,7 @@ const T = {
 };
 
 let currentLang = 'pl';
-let _lastPasswords = null, _lastBits = 0;
+let _lastPasswords = null;
 let _lastTotpSecret = null;
 document.addEventListener('DOMContentLoaded', () => setLang('pl'));
 
@@ -481,7 +483,7 @@ function setLang(lang) {
 
   // re-render with same data (do not regenerate)
   const pwBox = document.getElementById('pw-results');
-  if (pwBox.classList.contains('show') && _lastPasswords) renderPasswordResults(_lastPasswords, _lastBits);
+  if (pwBox.classList.contains('show') && _lastPasswords) renderPasswordResults(_lastPasswords);
   const totpBox = document.getElementById('totp-results');
   if (totpBox.classList.contains('show') && _lastTotpSecret) renderTOTP(_lastTotpSecret);
 }
@@ -659,25 +661,12 @@ function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-function calcEntropy(style, wordCount, poolSize, addDigits, addSymbol, pwLength) {
-  if (style === 'words') {
-    let bits = wordCount * Math.log2(poolSize);
-    if (addDigits) bits += Math.log2(900);
-    if (addSymbol) bits += Math.log2(SYMBOLS.length);
-    return Math.round(bits);
-  }
-  let sz = 52; // a-z + A-Z
-  if (addDigits) sz += 10;
-  if (addSymbol) sz += SYMBOLS.length;
-  return Math.round(pwLength * Math.log2(sz));
-}
-
 function strengthBadge(bits) {
   const t = T[currentLang];
   const label = `~${bits} bit`;
-  if (bits >= 80) return `<span class="badge badge-strong">${t.strengthStrong} (${label})</span>`;
-  if (bits >= 60) return `<span class="badge badge-ok">${t.strengthOk} (${label})</span>`;
-  if (bits >= 35) return `<span class="badge badge-medium">${t.strengthMedium} (${label})</span>`;
+  if (bits > 128) return `<span class="badge badge-strong">${t.strengthStrong} (${label})</span>`;
+  if (bits >= 80) return `<span class="badge badge-ok">${t.strengthOk} (${label})</span>`;
+  if (bits >= 60) return `<span class="badge badge-medium">${t.strengthMedium} (${label})</span>`;
   return `<span class="badge badge-weak">${t.strengthWeak} (${label})</span>`;
 }
 
@@ -688,26 +677,31 @@ document.getElementById('pw-style').addEventListener('change', function() {
   document.getElementById('word-options').style.display     = isWords ? '' : 'none';
 });
 
-function updateEditedBadge(el) {
-  const text = el.textContent;
-  if (!text) return;
+function bitsFromText(text) {
   let pool = 0;
   if (/[a-z]/.test(text)) pool += 26;
   if (/[A-Z]/.test(text)) pool += 26;
   if (/[0-9]/.test(text)) pool += 10;
   if (/[^a-zA-Z0-9]/.test(text)) pool += SYMBOLS.length;
-  if (pool < 2) pool = 2;
-  const bits = Math.round(text.length * Math.log2(pool));
-  const badge = el.closest('.result-block').querySelector('.badge');
-  if (!badge) return;
-  const t = T[currentLang];
-  const label = bits >= 80 ? t.strengthStrong : bits >= 60 ? t.strengthOk : bits >= 35 ? t.strengthMedium : t.strengthWeak;
-  const cls   = bits >= 80 ? 'badge-strong'   : bits >= 60 ? 'badge-ok'     : bits >= 35 ? 'badge-medium'   : 'badge-weak';
-  badge.className = `badge ${cls}`;
-  badge.textContent = `${label} (~${bits} bit)`;
+  return pool >= 2 ? Math.round(text.length * Math.log2(pool)) : 0;
 }
 
-function renderPasswordResults(passwords, bits) {
+function updateEditedBadge(el) {
+  const block = el.closest('.result-block');
+  const badge = block.querySelector('.badge');
+  if (!badge) return;
+  const text = el.textContent;
+  const bits = bitsFromText(text);
+  const t = T[currentLang];
+  const label = bits > 128 ? t.strengthStrong : bits >= 80 ? t.strengthOk : bits >= 60 ? t.strengthMedium : t.strengthWeak;
+  const cls   = bits > 128 ? 'badge-strong'   : bits >= 80 ? 'badge-ok'  : bits >= 60 ? 'badge-medium'   : 'badge-weak';
+  badge.className = `badge ${cls}`;
+  badge.textContent = `${label} (~${bits} bit)`;
+  const countEl = block.querySelector('.pw-charcount');
+  if (countEl) countEl.textContent = text.length;
+}
+
+function renderPasswordResults(passwords) {
   const t = T[currentLang];
   const box = document.getElementById('pw-results');
   box.innerHTML = passwords.map((pw, i) => `
@@ -715,9 +709,12 @@ function renderPasswordResults(passwords, bits) {
       <div class="result-label">${t.pwPrefix} ${i + 1}</div>
       <div class="result-row">
         <span class="pw-editable" id="pw-val-${i}" contenteditable="plaintext-only" spellcheck="false">${escHtml(pw)}</span>
-        <button class="copy-btn" onclick="copyText('pw-val-${i}', this)">${t.copy}</button>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
+          <button class="copy-btn" onclick="copyText('pw-val-${i}', this)">${t.copy}</button>
+          <span class="pw-charcount" id="pw-len-${i}">${pw.length}</span>
+        </div>
       </div>
-      ${strengthBadge(bits)}
+      ${strengthBadge(bitsFromText(pw))}
     </div>
     ${i < passwords.length - 1 ? '<hr class="divider">' : ''}
   `).join('');
@@ -736,7 +733,6 @@ function generatePasswords() {
   const len = Math.min(64, Math.max(8, parseInt(document.getElementById('pw-len').value) || 16));
   const pool = currentLang === 'pl' ? WORDS_PL : WORDS_EN;
 
-  _lastBits = calcEntropy(style, wc, pool.length, addDigits, addSymbol, len);
   _lastPasswords = [];
   for (let i = 0; i < count; i++) {
     if (style === 'words') {
@@ -745,7 +741,7 @@ function generatePasswords() {
       _lastPasswords.push(makeRandomPassword(len, addDigits, addSymbol));
     }
   }
-  renderPasswordResults(_lastPasswords, _lastBits);
+  renderPasswordResults(_lastPasswords);
 }
 
 function base32Encode(bytes) {
