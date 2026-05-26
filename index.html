@@ -343,7 +343,7 @@
     </div>
 
     <label data-i18n="totpLabelLabel">Nazwa konta</label>
-    <input type="text" id="totp-label" data-i18n-placeholder="totpLabelPlaceholder" placeholder="np. JanNowak" />
+    <input type="text" id="totp-label" data-i18n-placeholder="totpLabelPlaceholder" placeholder="np. JanNo" />
 
     <label data-i18n="totpIssuerLabel">Wydawca</label>
     <input type="text" id="totp-issuer" value="Cyfrowe VPN" />
@@ -391,7 +391,7 @@ const T = {
     copy: 'Kopiuj', copied: 'Skopiowano!',
     totpCardTitle: 'TOTP / Google Authenticator',
     totpLabelLabel: 'Nazwa konta',
-    totpLabelPlaceholder: 'np. JanNowak',
+    totpLabelPlaceholder: 'np. JanNo',
     totpIssuerLabel: 'Wydawca',
     generateTotp: 'Generuj klucz TOTP',
     liveCodeLabel: 'Aktualny kod (kliknij aby skopiować)',
@@ -431,7 +431,7 @@ const T = {
     copy: 'Copy', copied: 'Copied!',
     totpCardTitle: 'TOTP / Google Authenticator',
     totpLabelLabel: 'Account name',
-    totpLabelPlaceholder: 'e.g. JanNowak',
+    totpLabelPlaceholder: 'e.g. JanNo',
     totpIssuerLabel: 'Issuer',
     generateTotp: 'Generate TOTP Key',
     liveCodeLabel: 'Current code (click to copy)',
@@ -829,7 +829,7 @@ async function tickTOTP(secret) {
 
 async function renderTOTP(secret) {
   const t      = T[currentLang];
-  const label  = document.getElementById('totp-label').value.trim()  || 'VPN User';
+  const label  = document.getElementById('totp-label').value.trim()  || '';
   const issuer = document.getElementById('totp-issuer').value.trim() || 'Cyfrowe VPN';
   const uri = `otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
 
@@ -869,6 +869,29 @@ async function renderTOTP(secret) {
     colorDark: '#000000', colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.M
   });
+
+  // Extend canvas to include account name as a caption below the QR
+  const qrCanvas = container.querySelector('canvas');
+  if (qrCanvas) {
+    const display = label.length > 24 ? label.slice(0, 23) + '…' : label;
+    const capH = 32;
+    const composite = document.createElement('canvas');
+    composite.width  = qrCanvas.width;
+    composite.height = qrCanvas.height + capH;
+    composite.style.borderRadius = '8px';
+    composite.style.border = '6px solid #fff';
+    const ctx = composite.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, composite.width, composite.height);
+    ctx.drawImage(qrCanvas, 0, 0);
+    ctx.fillStyle = '#111111';
+    ctx.font = `bold 14px 'Segoe UI',Arial,sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(display, composite.width / 2, qrCanvas.height + capH / 2);
+    container.innerHTML = '';
+    container.appendChild(composite);
+  }
 
   await tickTOTP(secret);
   _totpInterval = setInterval(() => tickTOTP(secret), 1000);
