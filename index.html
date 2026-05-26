@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Narzędzia VPN — Generator haseł i TOTP</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="qrcode.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -215,6 +215,23 @@
 
     .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
 
+    .totp-live { text-align: center; padding: .5rem 0 .25rem; }
+    .totp-code {
+      font-family: 'Cascadia Code','Consolas',monospace;
+      font-size: 2.4rem; font-weight: 700;
+      letter-spacing: .05em; color: var(--accent2);
+      cursor: pointer; user-select: none;
+      transition: opacity .15s;
+    }
+    .totp-code:hover { opacity: .75; }
+    .totp-code.flash { color: #fff; }
+    .totp-bar-wrap {
+      height: 5px; background: var(--border);
+      border-radius: 3px; margin: .65rem 0 .35rem; overflow: hidden;
+    }
+    .totp-bar { height: 100%; border-radius: 3px; transition: width 1s linear, background .4s; }
+    .totp-countdown { font-size: .8rem; color: var(--muted); }
+
     footer {
       text-align: center; margin-top: 3rem;
       color: var(--muted); font-size: .8rem;
@@ -268,10 +285,10 @@
         <div class="opt-group">
           <label data-i18n="sepLabel">Separator</label>
           <select id="pw-sep">
-            <option value="-"  data-i18n="sepDash">Myślnik  (słowo-słowo)</option>
-            <option value="."  data-i18n="sepDot">Kropka  (słowo.słowo)</option>
-            <option value="_"  data-i18n="sepUnder">Podkreślnik  (słowo_słowo)</option>
-            <option value=""   data-i18n="sepNone" selected>Brak  (słowosłowo)</option>
+            <option value="-"  data-i18n="sepDash">-</option>
+            <option value="."  data-i18n="sepDot">.</option>
+            <option value="_"  data-i18n="sepUnder">_</option>
+            <option value=""   data-i18n="sepNone" selected>Brak</option>
           </select>
         </div>
         <div class="opt-group">
@@ -312,15 +329,6 @@
     <label data-i18n="totpIssuerLabel">Wydawca</label>
     <input type="text" id="totp-issuer" value="Cyfrowe VPN" />
 
-    <div class="opt-group">
-      <label data-i18n="totpPeriodLabel">Okres</label>
-      <select id="totp-period">
-        <option value="30" selected data-i18n="period30">30 sekund</option>
-        <option value="60" data-i18n="period60">60 sekund</option>
-      </select>
-    </div>
-
-    <br />
     <button class="btn btn-teal" onclick="generateTOTP()" data-i18n="generateTotp">Generuj klucz TOTP</button>
     <div class="result-box" id="totp-results"></div>
   </div>
@@ -345,10 +353,10 @@ const T = {
     words2: '2 słowa', words3: '3 słowa', words4: '4 słowa',
     lengthLabel: 'Długość',
     sepLabel: 'Separator',
-    sepDash: 'Myślnik  (słowo-słowo)',
-    sepDot:  'Kropka  (słowo.słowo)',
-    sepUnder:'Podkreślnik  (słowo_słowo)',
-    sepNone: 'Brak  (słowosłowo)',
+    sepDash: '-',
+    sepDot:  '.',
+    sepUnder:'_',
+    sepNone: 'Brak',
     capLabel: 'Wielkie litery',
     capFirst: 'Pierwsza litera',
     capAll:   'Wszystkie słowa',
@@ -369,6 +377,7 @@ const T = {
     totpPeriodLabel: 'Okres',
     period30: '30 sekund', period60: '60 sekund',
     generateTotp: 'Generuj klucz TOTP',
+    liveCodeLabel: 'Aktualny kod (kliknij aby skopiować)',
     secretLabel: 'Klucz BASE32',
     uriLabel: 'OTPAuth URI',
     qrLabel: 'Kod QR — zeskanuj w Google Authenticator',
@@ -385,10 +394,10 @@ const T = {
     words2: '2 words', words3: '3 words', words4: '4 words',
     lengthLabel: 'Length',
     sepLabel: 'Separator',
-    sepDash: 'Dash  (word-word)',
-    sepDot:  'Dot  (word.word)',
-    sepUnder:'Underscore  (word_word)',
-    sepNone: 'None  (wordword)',
+    sepDash: '-',
+    sepDot:  '.',
+    sepUnder:'_',
+    sepNone: 'None',
     capLabel: 'Capitalise',
     capFirst: 'First letter',
     capAll:   'All words',
@@ -409,6 +418,7 @@ const T = {
     totpPeriodLabel: 'Period',
     period30: '30 seconds', period60: '60 seconds',
     generateTotp: 'Generate TOTP Key',
+    liveCodeLabel: 'Current code (click to copy)',
     secretLabel: 'BASE32 Secret Key',
     uriLabel: 'OTPAuth URI',
     qrLabel: 'QR Code — scan with Google Authenticator',
@@ -417,6 +427,7 @@ const T = {
 };
 
 let currentLang = 'pl';
+document.addEventListener('DOMContentLoaded', () => setLang('pl'));
 
 function setLang(lang) {
   currentLang = lang;
@@ -530,8 +541,8 @@ const WORDS_PL = [
   'wilk','kret','karp','ptak','ryba','rekin','delfin','zebra','panda','koala',
   'gepard','tygrys','lampart','wrona','sowa','bocian','pelikan','pingwin','kogut',
   'kura','kaczka','koza','krowa','byk','owca','konik','goryl','szympans','borsuk',
-  'baran','dzik','norka','wydra','borsuk','pelikan','tukan','kondor','sokol','jastrzab',
-  'kormoran','pingwin','foka','mors','bizon','renifer','jelen','sarna','dzik',
+  'baran','dzik','norka','wydra','tukan','kondor','sokol','jastrzab',
+  'kormoran','foka','mors','bizon','renifer','jelen','sarna',
   // natura (nature)
   'sosna','brzoza','buk','grab','wierzba','topola','kasztan','grusza','truskawka',
   'malina','jagoda','grzyb','kwiat','trawa','skala','piasek','bruk','grot',
@@ -556,28 +567,34 @@ const WORDS_PL = [
   'dobry','dziarski','dzielny','gotowy','bezpieczny','cichy','hardy',
   // jedzenie (food)
   'chleb','ser','zupa','kasza','cukier','pieprz','kapusta','marchew',
-  'ziemniak','gruszka','winogrono','ryba','karp','pstrag','leszcz',
+  'ziemniak','gruszka','winogrono','pstrag','leszcz',
   // sport i ruch (sport & motion)
   'sport','bieg','skok','rzut','mecz','gra','wynik','rekord','medal',
   'tarcza','miecz','szachy','turniej','warcaby','sprint','wypad','blok',
   // ciało i dusza (body & soul)
-  'serce','rozum','dusza','krew','wiara','nadzieja',
+  'serce','rozum','dusza','krew',
   // kolory (colours — ASCII safe)
   'czarny','czerwony','zielony','niebieski','fioletowy','szary','srebrny',
   'granatowy','brazowy','kremowy','turkus','karmazyn',
   // extra polskie rzeczowniki
-  'zamek','strumyk','grzmot','piorun','rozlew','wrzeszcz','ostep','grzebien',
+  'grzmot','piorun','rozlew','wrzeszcz','ostep','grzebien',
   'brzeg','koryto','parkan','obszycie','nawis','zaranie','zmierzch','swit',
   'zagon','grzeda','ostrow','cypel','przylad','mierzeja','klif','ostaniec',
-  'monolit','obelisk','kolumna','portal','przeskok','zwornik','nadproze',
+  'monolit','obelisk','kolumna','przeskok','zwornik','nadproze',
   'podcien','kruzganek','dziedziniec','baszta','barbakan','donzon','blanki',
   'machikuly','strzelnica','fosja','waly','przedmocie','przyczolok'
 ];
 
-const SYMBOLS = '!@#$%^&*-+=?';
+const SYMBOLS = '!@#$%&*-+=?';
 const DIGITS  = '0123456789';
 
-function rand(n) { return Math.floor(Math.random() * n); }
+function rand(n) {
+  // CSPRNG with rejection sampling to eliminate modulo bias
+  const limit = Math.floor(0x100000000 / n) * n;
+  const a = new Uint32Array(1);
+  do { crypto.getRandomValues(a); } while (a[0] >= limit);
+  return a[0] % n;
+}
 function pick(arr) { return arr[rand(arr.length)]; }
 function randChar(set) { return set[rand(set.length)]; }
 function shuffle(arr) {
@@ -592,9 +609,11 @@ function shuffle(arr) {
 // ─── Password helpers ─────────────────────────────────────────────────────────
 function makeWordPassword(wordCount, sep, capMode, addDigits, addSymbol) {
   const pool = currentLang === 'pl' ? WORDS_PL : WORDS_EN;
-  const words = Array.from({length: wordCount}, () => {
+  const words = Array.from({length: wordCount}, (_, i) => {
     const w = pick(pool);
-    return capMode === 'none' ? w : w.charAt(0).toUpperCase() + w.slice(1);
+    if (capMode === 'none')  return w;
+    if (capMode === 'first') return i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w;
+    return w.charAt(0).toUpperCase() + w.slice(1); // capAll
   });
 
   let base = words.join(sep);
@@ -621,22 +640,29 @@ function makeRandomPassword(length, addDigits, addSymbol) {
   return shuffle(required).join('');
 }
 
-function scorePassword(pw) {
-  let s = 0;
-  if (pw.length >= 12) s++;
-  if (pw.length >= 20) s++;
-  if (/[A-Z]/.test(pw)) s++;
-  if (/[a-z]/.test(pw)) s++;
-  if (/\d/.test(pw)) s++;
-  if (/[^a-zA-Z0-9]/.test(pw)) s++;
-  return s;
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function strengthBadge(score) {
+function calcEntropy(style, wordCount, poolSize, addDigits, addSymbol, pwLength) {
+  if (style === 'words') {
+    let bits = wordCount * Math.log2(poolSize);
+    if (addDigits) bits += Math.log2(900);
+    if (addSymbol) bits += Math.log2(SYMBOLS.length);
+    return Math.round(bits);
+  }
+  let sz = 52; // a-z + A-Z
+  if (addDigits) sz += 10;
+  if (addSymbol) sz += SYMBOLS.length;
+  return Math.round(pwLength * Math.log2(sz));
+}
+
+function strengthBadge(bits) {
   const t = T[currentLang];
-  if (score >= 5) return `<span class="badge badge-strong">${t.strengthStrong}</span>`;
-  if (score >= 3) return `<span class="badge badge-medium">${t.strengthMedium}</span>`;
-  return `<span class="badge badge-weak">${t.strengthWeak}</span>`;
+  const label = `~${bits} bit`;
+  if (bits >= 60) return `<span class="badge badge-strong">${t.strengthStrong} (${label})</span>`;
+  if (bits >= 35) return `<span class="badge badge-medium">${t.strengthMedium} (${label})</span>`;
+  return `<span class="badge badge-weak">${t.strengthWeak} (${label})</span>`;
 }
 
 // ─── UI toggle ────────────────────────────────────────────────────────────────
@@ -655,15 +681,18 @@ function generatePasswords() {
   const addDigits = document.getElementById('pw-digits').checked;
   const addSymbol = document.getElementById('pw-symbol').checked;
 
+  const wc  = parseInt(document.getElementById('pw-words').value);
+  const sep = document.getElementById('pw-sep').value;
+  const cap = document.getElementById('pw-cap').value;
+  const len = Math.min(64, Math.max(8, parseInt(document.getElementById('pw-len').value) || 16));
+  const pool = currentLang === 'pl' ? WORDS_PL : WORDS_EN;
+  const bits = calcEntropy(style, wc, pool.length, addDigits, addSymbol, len);
+
   const passwords = [];
   for (let i = 0; i < count; i++) {
     if (style === 'words') {
-      const wc  = parseInt(document.getElementById('pw-words').value);
-      const sep = document.getElementById('pw-sep').value;
-      const cap = document.getElementById('pw-cap').value;
       passwords.push(makeWordPassword(wc, sep, cap, addDigits, addSymbol));
     } else {
-      const len = Math.min(64, Math.max(8, parseInt(document.getElementById('pw-len').value) || 16));
       passwords.push(makeRandomPassword(len, addDigits, addSymbol));
     }
   }
@@ -673,10 +702,10 @@ function generatePasswords() {
     <div class="result-block">
       <div class="result-label">${t.pwPrefix} ${i + 1}</div>
       <div class="result-row">
-        <span class="result-value" id="pw-val-${i}">${pw}</span>
+        <span class="result-value" id="pw-val-${i}">${escHtml(pw)}</span>
         <button class="copy-btn" onclick="copyText('pw-val-${i}', this)">${t.copy}</button>
       </div>
-      ${strengthBadge(scorePassword(pw))}
+      ${strengthBadge(bits)}
     </div>
     ${i < passwords.length - 1 ? '<hr class="divider">' : ''}
   `).join('');
@@ -702,18 +731,94 @@ function generateSecret() {
   return base32Encode(buf);
 }
 
+// ─── BASE32 decode ────────────────────────────────────────────────────────────
+function base32Decode(input) {
+  const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = 0, val = 0;
+  const out = [];
+  for (const ch of input.toUpperCase().replace(/=+$/, '')) {
+    const idx = alpha.indexOf(ch);
+    if (idx === -1) continue;
+    val = (val << 5) | idx;
+    bits += 5;
+    if (bits >= 8) { out.push((val >>> (bits - 8)) & 0xff); bits -= 8; }
+  }
+  return new Uint8Array(out);
+}
+
+// ─── Live TOTP computation (Web Crypto HMAC-SHA1) ─────────────────────────────
+async function computeTOTPCode(secret) {
+  const PERIOD = 30;
+  const step = Math.floor(Date.now() / 1000 / PERIOD);
+  const msg = new ArrayBuffer(8);
+  new DataView(msg).setUint32(4, step, false);
+  const key = await crypto.subtle.importKey(
+    'raw', base32Decode(secret),
+    { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
+  );
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, msg));
+  const offset = sig[19] & 0xf;
+  const code = (
+    ((sig[offset]   & 0x7f) << 24) |
+    ((sig[offset+1] & 0xff) << 16) |
+    ((sig[offset+2] & 0xff) <<  8) |
+     (sig[offset+3] & 0xff)
+  ) % 1_000_000;
+  return code.toString().padStart(6, '0');
+}
+
+let _totpInterval = null;
+
+function stopTOTPTimer() {
+  if (_totpInterval) { clearInterval(_totpInterval); _totpInterval = null; }
+}
+
+async function tickTOTP(secret) {
+  const PERIOD = 30;
+  const secsLeft = PERIOD - (Math.floor(Date.now() / 1000) % PERIOD);
+  const pct = (secsLeft / PERIOD) * 100;
+
+  const codeEl = document.getElementById('totp-live-code');
+  const barEl  = document.getElementById('totp-bar');
+  const secEl  = document.getElementById('totp-seconds');
+  if (!codeEl) { stopTOTPTimer(); return; }
+
+  // recompute code at each new period
+  if (secsLeft === PERIOD || !codeEl.dataset.step || codeEl.dataset.step !== String(Math.floor(Date.now()/1000/PERIOD))) {
+    const newStep = String(Math.floor(Date.now() / 1000 / PERIOD));
+    codeEl.dataset.step = newStep;
+    const code = await computeTOTPCode(secret);
+    codeEl.textContent = code.slice(0,3) + ' ' + code.slice(3);
+  }
+
+  if (secEl) secEl.textContent = secsLeft;
+  if (barEl) {
+    barEl.style.width = pct + '%';
+    barEl.style.background = secsLeft > 10 ? 'var(--accent2)' : secsLeft > 5 ? '#ffc107' : '#ff6b6b';
+  }
+}
+
 // ─── Generate TOTP ────────────────────────────────────────────────────────────
-function generateTOTP() {
+async function generateTOTP() {
   const t      = T[currentLang];
   const label  = document.getElementById('totp-label').value.trim()  || 'VPN User';
   const issuer = document.getElementById('totp-issuer').value.trim() || 'Cyfrowe VPN';
-  const period = document.getElementById('totp-period').value;
   const secret = generateSecret();
+  const uri = `otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
 
-  const uri = `otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=${period}`;
+  stopTOTPTimer();
 
   const box = document.getElementById('totp-results');
   box.innerHTML = `
+    <div class="result-block">
+      <div class="result-label">${t.liveCodeLabel}</div>
+      <div class="totp-live">
+        <div class="totp-code" id="totp-live-code" onclick="copyLiveCode(this)" title="${t.copy}">------</div>
+        <div class="totp-bar-wrap"><div class="totp-bar" id="totp-bar" style="width:100%"></div></div>
+        <div class="totp-countdown"><span id="totp-seconds">30</span>s</div>
+      </div>
+    </div>
+    <hr class="divider">
     <div class="result-block">
       <div class="result-label">${t.secretLabel}</div>
       <div class="result-row">
@@ -725,7 +830,7 @@ function generateTOTP() {
     <div class="result-block">
       <div class="result-label">${t.uriLabel}</div>
       <div class="result-row">
-        <span class="result-value" style="font-size:.78rem" id="totp-uri">${uri}</span>
+        <span class="result-value" style="font-size:.78rem" id="totp-uri">${escHtml(uri)}</span>
         <button class="copy-btn" onclick="copyText('totp-uri', this)">${t.copy}</button>
       </div>
     </div>
@@ -737,6 +842,7 @@ function generateTOTP() {
   `;
   box.classList.add('show');
 
+  // QR code
   const container = document.getElementById('qr-container');
   container.innerHTML = '';
   new QRCode(container, {
@@ -744,17 +850,40 @@ function generateTOTP() {
     colorDark: '#000000', colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.M
   });
+
+  // start live ticker
+  await tickTOTP(secret);
+  _totpInterval = setInterval(() => tickTOTP(secret), 1000);
 }
 
-// ─── Copy helper ──────────────────────────────────────────────────────────────
+// ─── Copy helpers ─────────────────────────────────────────────────────────────
+function copyLiveCode(el) {
+  const code = el.textContent.replace(/\s/g, '');
+  navigator.clipboard.writeText(code).then(() => {
+    el.classList.add('flash');
+    setTimeout(() => el.classList.remove('flash'), 300);
+  }).catch(() => {
+    el.style.outline = '2px solid #ff6b6b';
+    setTimeout(() => el.style.outline = '', 1500);
+  });
+}
+
 function copyText(id, btn) {
-  const text = document.getElementById(id).textContent;
+  const el = document.getElementById(id);
+  const text = el.textContent;
   navigator.clipboard.writeText(text).then(() => {
-    const orig = btn.textContent;
     const t = T[currentLang];
     btn.textContent = t.copied;
     btn.classList.add('copied');
     setTimeout(() => { btn.textContent = t.copy; btn.classList.remove('copied'); }, 1800);
+  }).catch(() => {
+    // Fallback: select the text so user can copy manually
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    btn.textContent = '⚠';
+    setTimeout(() => { btn.textContent = T[currentLang].copy; }, 2000);
   });
 }
 </script>
