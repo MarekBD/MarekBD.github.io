@@ -218,7 +218,7 @@
     .totp-code {
       font-family: 'Cascadia Code','Consolas',monospace;
       font-size: 2.4rem; font-weight: 700;
-      letter-spacing: .05em; color: var(--accent2);
+      letter-spacing: .0em; color: var(--accent2);
       cursor: pointer; user-select: none;
       transition: opacity .15s;
     }
@@ -268,9 +268,9 @@
       <div class="opt-group" id="words-count-wrap">
         <label data-i18n="wordCountLabel">Liczba słów</label>
         <select id="pw-words">
-          <option value="2" data-i18n="words2">2 słowa</option>
-          <option value="3" selected data-i18n="words3">3 słowa</option>
-          <option value="4" data-i18n="words4">4 słowa</option>
+          <option value="3" data-i18n="words3">3 słowa</option>
+          <option value="4" selected data-i18n="words4">4 słowa</option>
+          <option value="5" data-i18n="words5">5 słów</option>
         </select>
       </div>
       <div class="opt-group" id="random-len-wrap" style="display:none">
@@ -293,8 +293,8 @@
         <div class="opt-group">
           <label data-i18n="capLabel">Wielkie litery</label>
           <select id="pw-cap">
-            <option value="first" selected data-i18n="capFirst">Pierwsza litera</option>
-            <option value="all"   data-i18n="capAll">Wszystkie słowa</option>
+            <option value="first" data-i18n="capFirst">Pierwsza litera</option>
+            <option value="all" selected data-i18n="capAll">Wszystkie słowa</option>
             <option value="none"  data-i18n="capNone">Brak</option>
           </select>
         </div>
@@ -348,7 +348,7 @@ const T = {
     styleWords: 'Łatwe do zapamiętania',
     styleRandom: 'Losowe znaki',
     wordCountLabel: 'Liczba słów',
-    words2: '2 słowa', words3: '3 słowa', words4: '4 słowa',
+    words3: '3 słowa', words4: '4 słowa', words5: '5 słów',
     lengthLabel: 'Długość',
     sepLabel: 'Separator',
     sepDash: '-',
@@ -387,7 +387,7 @@ const T = {
     styleWords: 'Memorable words',
     styleRandom: 'Random characters',
     wordCountLabel: 'Word count',
-    words2: '2 words', words3: '3 words', words4: '4 words',
+    words3: '3 words', words4: '4 words', words5: '5 words',
     lengthLabel: 'Length',
     sepLabel: 'Separator',
     sepDash: '-',
