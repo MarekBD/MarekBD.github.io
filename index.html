@@ -340,7 +340,6 @@
 </footer>
 
 <script>
-// ─── Translations ────────────────────────────────────────────────────────────
 const T = {
   pl: {
     title: 'Narzędzia VPN',
@@ -470,7 +469,6 @@ function setLang(lang) {
   if (totpBox.classList.contains('show')) generateTOTP();
 }
 
-// ─── Word lists ──────────────────────────────────────────────────────────────
 const WORDS_EN = [
   // nature & landscape
   'amber','apex','arch','arctic','arena','arrow','atlas','azure',
@@ -606,7 +604,6 @@ function shuffle(arr) {
   return a;
 }
 
-// ─── Password helpers ─────────────────────────────────────────────────────────
 function makeWordPassword(wordCount, sep, capMode, addDigits, addSymbol) {
   const pool = currentLang === 'pl' ? WORDS_PL : WORDS_EN;
   const words = Array.from({length: wordCount}, (_, i) => {
@@ -665,7 +662,6 @@ function strengthBadge(bits) {
   return `<span class="badge badge-weak">${t.strengthWeak} (${label})</span>`;
 }
 
-// ─── UI toggle ────────────────────────────────────────────────────────────────
 document.getElementById('pw-style').addEventListener('change', function() {
   const isWords = this.value === 'words';
   document.getElementById('words-count-wrap').style.display = isWords ? '' : 'none';
@@ -673,7 +669,6 @@ document.getElementById('pw-style').addEventListener('change', function() {
   document.getElementById('word-options').style.display     = isWords ? '' : 'none';
 });
 
-// ─── Generate passwords ───────────────────────────────────────────────────────
 function generatePasswords() {
   const t = T[currentLang];
   const style     = document.getElementById('pw-style').value;
@@ -712,7 +707,6 @@ function generatePasswords() {
   box.classList.add('show');
 }
 
-// ─── BASE32 ───────────────────────────────────────────────────────────────────
 function base32Encode(bytes) {
   const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   let out = '', bits = 0, val = 0;
@@ -731,7 +725,6 @@ function generateSecret() {
   return base32Encode(buf);
 }
 
-// ─── BASE32 decode ────────────────────────────────────────────────────────────
 function base32Decode(input) {
   const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   let bits = 0, val = 0;
@@ -746,7 +739,6 @@ function base32Decode(input) {
   return new Uint8Array(out);
 }
 
-// ─── Live TOTP computation (Web Crypto HMAC-SHA1) ─────────────────────────────
 async function computeTOTPCode(secret) {
   const PERIOD = 30;
   const step = Math.floor(Date.now() / 1000 / PERIOD);
@@ -798,7 +790,6 @@ async function tickTOTP(secret) {
   }
 }
 
-// ─── Generate TOTP ────────────────────────────────────────────────────────────
 async function generateTOTP() {
   const t      = T[currentLang];
   const label  = document.getElementById('totp-label').value.trim()  || 'VPN User';
@@ -856,7 +847,6 @@ async function generateTOTP() {
   _totpInterval = setInterval(() => tickTOTP(secret), 1000);
 }
 
-// ─── Copy helpers ─────────────────────────────────────────────────────────────
 function copyLiveCode(el) {
   const code = el.textContent.replace(/\s/g, '');
   navigator.clipboard.writeText(code).then(() => {
