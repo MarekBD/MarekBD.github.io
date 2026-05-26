@@ -132,7 +132,6 @@
 
     .options-row { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
     .opt-group { flex: 1; min-width: 130px; }
-    .opt-group label { margin-bottom: .35rem; }
 
     .checkrow {
       display: flex; flex-wrap: wrap;
@@ -373,8 +372,6 @@ const T = {
     totpLabelLabel: 'Nazwa konta',
     totpLabelPlaceholder: 'np. JanNowak',
     totpIssuerLabel: 'Wydawca',
-    totpPeriodLabel: 'Okres',
-    period30: '30 sekund', period60: '60 sekund',
     generateTotp: 'Generuj klucz TOTP',
     liveCodeLabel: 'Aktualny kod (kliknij aby skopiować)',
     secretLabel: 'Klucz BASE32',
@@ -414,8 +411,6 @@ const T = {
     totpLabelLabel: 'Account name',
     totpLabelPlaceholder: 'e.g. JanNowak',
     totpIssuerLabel: 'Issuer',
-    totpPeriodLabel: 'Period',
-    period30: '30 seconds', period60: '60 seconds',
     generateTotp: 'Generate TOTP Key',
     liveCodeLabel: 'Current code (click to copy)',
     secretLabel: 'BASE32 Secret Key',
@@ -426,6 +421,8 @@ const T = {
 };
 
 let currentLang = 'pl';
+let _lastPasswords = null, _lastBits = 0;
+let _lastTotpSecret = null;
 document.addEventListener('DOMContentLoaded', () => setLang('pl'));
 
 function setLang(lang) {
@@ -462,11 +459,11 @@ function setLang(lang) {
     ? 'Narzędzia VPN — Generator haseł i TOTP'
     : 'VPN Tools — Password & TOTP Generator';
 
-  // re-render results if visible
+  // re-render with same data (do not regenerate)
   const pwBox = document.getElementById('pw-results');
-  if (pwBox.classList.contains('show')) generatePasswords();
+  if (pwBox.classList.contains('show') && _lastPasswords) renderPasswordResults(_lastPasswords, _lastBits);
   const totpBox = document.getElementById('totp-results');
-  if (totpBox.classList.contains('show')) generateTOTP();
+  if (totpBox.classList.contains('show') && _lastTotpSecret) renderTOTP(_lastTotpSecret);
 }
 
 const WORDS_EN = [
@@ -507,31 +504,31 @@ const WORDS_EN = [
   'apple','aqua','balm','baron','basalt','basin','baton','bazaar','beacon','bevel',
   'bison','bluff','boreal','bounty','brace','brand','brave','bread','brick','bridge',
   'brief','bright','bronze','buffer','canopy','carbon','cavern','cellar','center',
-  'chalk','chrome','cipher','citrus','civil','clamp','clean','clear','climb','clone',
-  'coach','cobalt','copper','cosmos','crater','crisp','cross','crush','crystal',
-  'daily','dagger','dawn','debug','decree','dense','depot','design','digital','dome',
-  'draft','droid','dyno','echelon','elder','energy','engine','epoch','equal','event',
-  'exact','factor','fiber','final','first','fixed','fjord','flare','flint','flood',
-  'flux','forest','fossil','fractal','fresco','frost','frozen','fulcrum','gale',
+  'citrus','civil','clamp','clean','clear','climb','clone',
+  'coach','cobalt','copper','cosmos','crater','cross','crush','crystal',
+  'daily','dawn','debug','decree','design','digital','dome',
+  'draft','droid','dyno','echelon','energy','engine','equal','event',
+  'exact','factor','fiber','final','first','fixed','fjord','flare','flint',
+  'flux','forest','fossil','fractal','fresco','frozen','fulcrum','gale',
   'garnet','geyser','ghost','glacier','glint','glow','goblin','gravel','ground',
-  'grove','gulf','harbor','harvest','hawk','hazard','helium','helix','hollow',
+  'gulf','harbor','harvest','hawk','hazard','helium','hollow',
   'horde','howl','hulk','hunter','hydra','impact','infer','ingot','input','intel',
-  'jaguar','jasper','jolt','journey','keen','keystone','knot','kraken','lava',
+  'jaguar','jasper','jolt','journey','keystone','knot','kraken','lava',
   'league','legacy','lemur','lever','linden','lion','lotus','lynx','magma','manor',
   'marble','marker','mazer','mesa','micro','midnight','mist','moat','moon','morph',
   'motion','mountain','nebula','needle','nettle','nimbus','nova','nucleus','oasis',
-  'obsidian','onyx','otter','outpost','oxide','pact','patrol','peak','phoenix',
-  'pine','pinnacle','portal','probe','proto','prowl','quartz','quest','raptor',
-  'recon','reef','reflex','relay','relic','remote','ridge','rift','ripple','rogue',
-  'rune','rush','saber','safeguard','sandstone','sapphire','scalar','scout','seal',
-  'sentinel','shadow','shoal','sierra','signal','silver','siren','skyline','slate',
-  'sling','sliver','sonar','sparrow','spear','sphere','spire','sprint','spur',
-  'stag','static','stave','steam','steel','steppe','stone','stratum','stream',
-  'stride','strobe','strut','summit','sunspot','surge','swamp','tangle','talon',
+  'obsidian','onyx','otter','outpost','pact','patrol','peak','phoenix',
+  'pine','pinnacle','portal','proto','prowl','quartz','raptor',
+  'recon','reef','reflex','relic','remote','rift','ripple','rogue',
+  'rune','rush','saber','safeguard','sandstone','sapphire','scalar','seal',
+  'sentinel','shadow','shoal','sierra','signal','silver','siren','skyline',
+  'sling','sliver','sonar','sparrow','spear','sphere','sprint','spur',
+  'stag','static','stave','steam','steppe','stratum','stream',
+  'stride','strobe','strut','summit','sunspot','swamp','tangle','talon',
   'tempest','terrain','thermal','tidal','timber','torus','tracer','tundra','turret',
   'twitch','typhoon','uplift','valley','vector','venom','vertex','vestige','vigor',
   'viking','viper','vise','volt','wafer','warden','warlock','wave','waypoint',
-  'wedge','weld','whirl','wildcat','willow','wolf','wyvern','yew','zeal','zero'
+  'weld','whirl','wildcat','willow','wolf','wyvern','yew','zeal','zero'
 ];
 
 const WORDS_PL = [
@@ -553,14 +550,14 @@ const WORDS_PL = [
   // miasto i budowle (city & structures)
   'zamek','most','park','miasto','rynek','brama','mur','bastion','cytadela',
   'forteca','twierdza','warta','reduta','brygada','armia','flota','eskadra',
-  'ratusz','wiezba','kosciol','sklep','bazar','portal','strona','baza',
+  'ratusz','wieza','kosciol','sklep','bazar','portal','strona','baza',
   // technika (tech)
   'komputer','serwer','router','kabel','modem','system','klucz','szyfr',
   'login','antena','monitor','procesor','dysk','karta','radar','sonar',
   'czujnik','laser','sensor','modul','sterownik','terminal','konsola',
   // cechy i wartości (qualities & values)
   'moc','honor','odwaga','zgoda','prawda','wiara','nadzieja','pokora',
-  'wierny','pewny','bystry','gibtki','sprawny','mocny','czysty','ostry',
+  'wierny','pewny','bystry','gibki','sprawny','mocny','czysty','ostry',
   'twardy','lekki','nowy','stary','wielki','wysoki','niski','szeroki',
   'dobry','dziarski','dzielny','gotowy','bezpieczny','cichy','hardy',
   // jedzenie (food)
@@ -580,14 +577,15 @@ const WORDS_PL = [
   'zagon','grzeda','ostrow','cypel','przylad','mierzeja','klif','ostaniec',
   'monolit','obelisk','kolumna','przeskok','zwornik','nadproze',
   'podcien','kruzganek','dziedziniec','baszta','barbakan','donzon','blanki',
-  'machikuly','strzelnica','fosja','waly','przedmocie','przyczolok'
+  'machikuly','strzelnica','fosa','waly','przedmoscie','przyczolek'
 ];
 
 const SYMBOLS = '!@#$%&*-+=?';
 const DIGITS  = '0123456789';
 
 function rand(n) {
-  // CSPRNG with rejection sampling to eliminate modulo bias
+  if (n <= 0 || !Number.isInteger(n)) throw new RangeError('rand: n must be a positive integer');
+  if (n === 1) return 0;
   const limit = Math.floor(0x100000000 / n) * n;
   const a = new Uint32Array(1);
   do { crypto.getRandomValues(a); } while (a[0] >= limit);
@@ -638,7 +636,7 @@ function makeRandomPassword(length, addDigits, addSymbol) {
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function calcEntropy(style, wordCount, poolSize, addDigits, addSymbol, pwLength) {
@@ -669,29 +667,8 @@ document.getElementById('pw-style').addEventListener('change', function() {
   document.getElementById('word-options').style.display     = isWords ? '' : 'none';
 });
 
-function generatePasswords() {
+function renderPasswordResults(passwords, bits) {
   const t = T[currentLang];
-  const style     = document.getElementById('pw-style').value;
-  const count     = Math.min(10, Math.max(1, parseInt(document.getElementById('pw-count').value) || 3));
-  const addDigits = document.getElementById('pw-digits').checked;
-  const addSymbol = document.getElementById('pw-symbol').checked;
-
-  const wc  = parseInt(document.getElementById('pw-words').value);
-  const sep = document.getElementById('pw-sep').value;
-  const cap = document.getElementById('pw-cap').value;
-  const len = Math.min(64, Math.max(8, parseInt(document.getElementById('pw-len').value) || 16));
-  const pool = currentLang === 'pl' ? WORDS_PL : WORDS_EN;
-  const bits = calcEntropy(style, wc, pool.length, addDigits, addSymbol, len);
-
-  const passwords = [];
-  for (let i = 0; i < count; i++) {
-    if (style === 'words') {
-      passwords.push(makeWordPassword(wc, sep, cap, addDigits, addSymbol));
-    } else {
-      passwords.push(makeRandomPassword(len, addDigits, addSymbol));
-    }
-  }
-
   const box = document.getElementById('pw-results');
   box.innerHTML = passwords.map((pw, i) => `
     <div class="result-block">
@@ -705,6 +682,29 @@ function generatePasswords() {
     ${i < passwords.length - 1 ? '<hr class="divider">' : ''}
   `).join('');
   box.classList.add('show');
+}
+
+function generatePasswords() {
+  const style     = document.getElementById('pw-style').value;
+  const count     = Math.min(10, Math.max(1, parseInt(document.getElementById('pw-count').value) || 3));
+  const addDigits = document.getElementById('pw-digits').checked;
+  const addSymbol = document.getElementById('pw-symbol').checked;
+  const wc  = parseInt(document.getElementById('pw-words').value);
+  const sep = document.getElementById('pw-sep').value;
+  const cap = document.getElementById('pw-cap').value;
+  const len = Math.min(64, Math.max(8, parseInt(document.getElementById('pw-len').value) || 16));
+  const pool = currentLang === 'pl' ? WORDS_PL : WORDS_EN;
+
+  _lastBits = calcEntropy(style, wc, pool.length, addDigits, addSymbol, len);
+  _lastPasswords = [];
+  for (let i = 0; i < count; i++) {
+    if (style === 'words') {
+      _lastPasswords.push(makeWordPassword(wc, sep, cap, addDigits, addSymbol));
+    } else {
+      _lastPasswords.push(makeRandomPassword(len, addDigits, addSymbol));
+    }
+  }
+  renderPasswordResults(_lastPasswords, _lastBits);
 }
 
 function base32Encode(bytes) {
@@ -776,7 +776,7 @@ async function tickTOTP(secret) {
   if (!codeEl) { stopTOTPTimer(); return; }
 
   // recompute code at each new period
-  if (secsLeft === PERIOD || !codeEl.dataset.step || codeEl.dataset.step !== String(Math.floor(Date.now()/1000/PERIOD))) {
+  if (!codeEl.dataset.step || codeEl.dataset.step !== String(Math.floor(Date.now()/1000/PERIOD))) {
     const newStep = String(Math.floor(Date.now() / 1000 / PERIOD));
     codeEl.dataset.step = newStep;
     const code = await computeTOTPCode(secret);
@@ -790,11 +790,10 @@ async function tickTOTP(secret) {
   }
 }
 
-async function generateTOTP() {
+async function renderTOTP(secret) {
   const t      = T[currentLang];
   const label  = document.getElementById('totp-label').value.trim()  || 'VPN User';
   const issuer = document.getElementById('totp-issuer').value.trim() || 'Cyfrowe VPN';
-  const secret = generateSecret();
   const uri = `otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
 
   stopTOTPTimer();
@@ -833,7 +832,6 @@ async function generateTOTP() {
   `;
   box.classList.add('show');
 
-  // QR code
   const container = document.getElementById('qr-container');
   container.innerHTML = '';
   new QRCode(container, {
@@ -842,9 +840,13 @@ async function generateTOTP() {
     correctLevel: QRCode.CorrectLevel.M
   });
 
-  // start live ticker
   await tickTOTP(secret);
   _totpInterval = setInterval(() => tickTOTP(secret), 1000);
+}
+
+async function generateTOTP() {
+  _lastTotpSecret = generateSecret();
+  await renderTOTP(_lastTotpSecret);
 }
 
 function copyLiveCode(el) {
