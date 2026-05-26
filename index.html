@@ -816,14 +816,7 @@ async function renderTOTP(secret) {
         <button class="copy-btn" onclick="copyText('totp-secret', this)">${t.copy}</button>
       </div>
     </div>
-    <hr class="divider">
-    <div class="result-block">
-      <div class="result-label">${t.uriLabel}</div>
-      <div class="result-row">
-        <span class="result-value" style="font-size:.78rem" id="totp-uri">${escHtml(uri)}</span>
-        <button class="copy-btn" onclick="copyText('totp-uri', this)">${t.copy}</button>
-      </div>
-    </div>
+    <span id="totp-uri" style="display:none">${escHtml(uri)}</span>
     <hr class="divider">
     <div class="result-block">
       <div class="result-label">${t.qrLabel}</div>
